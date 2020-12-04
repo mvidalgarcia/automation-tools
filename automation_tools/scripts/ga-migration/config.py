@@ -8,6 +8,6 @@
 
 """Script configuration."""
 
-REPO_PATHS_TO_MIGRATE = ['../invenio-accounts-rest', '../invenio-i18n']
-GA_TESTS_YAML_URL = "https://raw.githubusercontent.com/inveniosoftware/.github/master/workflow-templates/tests.yml"
-GA_PYPI_PUBLISH_YAML_URL = "https://raw.githubusercontent.com/inveniosoftware/.github/master/workflow-templates/pypi-publish.yml"
+REPO_PATHS_TO_MIGRATE = ["../invenio-accounts-rest", "../invenio-i18n"]
+GA_TESTS_YAML_URL = "https://raw.githubusercontent.com/inveniosoftware/invenio-formatter/master/.github/workflows/tests.yml"
+GA_PYPI_PUBLISH_YAML_URL = "https://raw.githubusercontent.com/inveniosoftware/invenio-formatter/master/.github/workflows/pypi-release.yml"

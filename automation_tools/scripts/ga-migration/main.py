@@ -36,7 +36,7 @@ def migrate_repo(path):
     # Reference: https://codimd.web.cern.ch/TOOkF5yhSAKJq3TiY0L42A?view
 
     travis = read_yaml(path + ".travis.yml")
-    if travis["deploy"]["provider"] == "pypi":
+    if travis and travis["deploy"]["provider"] == "pypi":
         # Download pypi-publish.yml template
         download_file(
             GA_PYPI_PUBLISH_YAML_URL,

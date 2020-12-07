@@ -15,32 +15,58 @@ from jinja2 import Environment, FileSystemLoader
 logging.basicConfig(level=logging.INFO)
 
 JinjaEnv = Environment(
-    loader=FileSystemLoader('automation_tools/scripts/ga-migration/templates')
+    loader=FileSystemLoader(
+        f"{os.path.join(os.path.dirname(__file__))}/templates"
+    )
 )
 
 
 def get_repo_services(repo_name):
     """Get repository services."""
-    travis_raw_url = f"https://raw.githubusercontent.com/inveniosoftware/{repo_name}/master/.travis.yml"
+
+    def _grep_url(grep_options, term, url):
+        """
+        Perform grep operation against content hosted under URL.
+
+        :return: Whether term matches.
+        """
+        return not bool(subprocess.call(
+            f'grep {grep_options} -- "{term}" <(curl -s {url})',
+            shell=True,
+            executable="/bin/bash"
+            )
+        )
+
+    repo_master_raw_url = (
+        f"https://raw.githubusercontent.com/inveniosoftware/{repo_name}/master"
+    )
+    travis_raw_url = f"{repo_master_raw_url}/.travis.yml"
     is_migrated = not requests.get(travis_raw_url).ok
 
-    search_terms = {
-        'postgres': 'db',
-        '- redis': 'cache',
-        'elasticsearch': 'search',
-        'rabbitmq-server': 'mq'
-    }
-    services = dict()
     if is_migrated:
-        # TODO: if is_migrated, check `run-tests.sh` and grep ${DB}, ${CHACHE}, etc.
-        pass
+        logging.info("TASK: Repo already migrated, rechecking services...")
+        grep_options = '-qE'
+        url = f"{repo_master_raw_url}/run-tests.sh"
+        search_terms = {
+            r"docker-services-cli up .*(DB|postgresql)": 'db',
+            r"docker-services-cli up .*(CACHE|redis)": 'cache',
+            r"docker-services-cli up .*(SEARCH|ES|\bes\b)": 'search',
+            r"docker-services-cli up .*(MQ|rabbitmq)": 'mq'
+        }
     else:
-        for term, service in search_terms.items():
-            services[service] = not bool(subprocess.call(
-                f'grep -q -- "{term}" <(curl -s {travis_raw_url})',
-                shell=True,
-                executable="/bin/bash"
-            ))
+        logging.info("TASK: Repo not migrated, identifing services...")
+        grep_options = '-q'
+        url = travis_raw_url
+        search_terms = {
+            'postgres': 'db',
+            '- redis': 'cache',
+            'elasticsearch': 'search',
+            'rabbitmq-server': 'mq'
+        }
+
+    services = dict()
+    for term, service in search_terms.items():
+        services[service] = _grep_url(grep_options, term, url)
     logging.info(f"TASK: Repo services identified: {services}")
     return services
 

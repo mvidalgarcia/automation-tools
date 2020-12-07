@@ -1,4 +1,5 @@
 import click
+import requests
 
 from utils import (
     replace_regex,
@@ -11,6 +12,8 @@ from utils import (
     append_to_file,
     add_line,
     delete_file,
+    render_template,
+    build_template
 )
 
 from config import (
@@ -64,19 +67,14 @@ def migrate_repo(path):
         path + "CONTRIBUTING.rst",
     )
 
+    # tests.yaml
+    build_template(
+        repo,
+        'tests.yml',
+        path=f'{path}/.github/workflows'
+    )
     # run-tests.sh
-    delete_line("isort", path + "run-tests.sh")
-    replace_simple(
-        'check-manifest --ignore ".travis-*"',
-        'check-manifest --ignore ".*-requirements.txt"',
-        path + "run-tests.sh",
-    )
-
-    # Download tests.yml template
-    download_file(
-        GA_TESTS_YAML_URL,
-        path + ".github/workflows/tests.yml",
-    )
+    build_template(repo, 'run-tests.sh', path=path)
 
     # pytest.ini
     delete_line("pep8ignore", path + "pytest.ini")

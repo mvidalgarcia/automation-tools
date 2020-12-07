@@ -5,12 +5,74 @@ import re
 import os
 import ast
 import json
-import yaml
+import subprocess
 
 import requests
+import yaml
+from jinja2 import Environment, FileSystemLoader
 
 
 logging.basicConfig(level=logging.INFO)
+
+JinjaEnv = Environment(
+    loader=FileSystemLoader('automation_tools/scripts/ga-migration/templates')
+)
+
+
+def get_repo_services(repo_name):
+    """Get repository services."""
+    travis_raw_url = f"https://raw.githubusercontent.com/inveniosoftware/{repo_name}/master/.travis.yml"
+    is_migrated = not requests.get(travis_raw_url).ok
+
+    search_terms = {
+        'postgres': 'db',
+        '- redis': 'cache',
+        'elasticsearch': 'search',
+        'rabbitmq-server': 'mq'
+    }
+    services = dict()
+    if is_migrated:
+        # TODO: if is_migrated, check `run-tests.sh` and grep ${DB}, ${CHACHE}, etc.
+        pass
+    else:
+        for term, service in search_terms.items():
+            services[service] = not bool(subprocess.call(
+                f'grep -q -- "{term}" <(curl -s {travis_raw_url})',
+                shell=True,
+                executable="/bin/bash"
+            ))
+    logging.info(f"TASK: Repo services identified: {services}")
+    return services
+
+
+def build_template(repo_name, template, path='.'):
+    """Build template based on repo services."""
+    def create_file(content, destination):
+        """Write content and create file in destination."""
+        dirname = os.path.dirname(os.path.realpath(destination))
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        open(destination, "w").write(content)
+
+    repo_services = get_repo_services(repo_name)
+    has_services = any(repo_services.values())
+    logging.info(f"TASK: Building and copying {template} template...")
+
+    directory = 'services' if has_services else 'serviceless'
+
+    content = render_template(
+        f"{directory}/{template}",
+        context=repo_services
+    )
+    destination = f"{path}/{template}"
+    create_file(content, destination)
+
+
+def render_template(template_file, context={}):
+    """Return string content of specified template file."""
+    template = JinjaEnv.get_template(template_file)
+    output_from_parsed_template = template.render(**context)
+    return output_from_parsed_template
 
 
 def delete_file(filepath):
@@ -116,7 +178,6 @@ def download_file(url, destination):
     dirname = os.path.dirname(os.path.realpath(destination))
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    print(dirname)
     r = requests.get(url, allow_redirects=True)
     open(destination, "wb").write(r.content)
 

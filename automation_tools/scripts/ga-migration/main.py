@@ -13,7 +13,7 @@ from utils import (
     add_line,
     delete_file,
     render_template,
-    build_template
+    build_template,
 )
 
 from config import (
@@ -68,13 +68,9 @@ def migrate_repo(path):
     )
 
     # tests.yaml
-    build_template(
-        repo,
-        'tests.yml',
-        path=f'{path}/.github/workflows'
-    )
+    build_template(repo, "tests.yml", path=f"{path}/.github/workflows")
     # run-tests.sh
-    build_template(repo, 'run-tests.sh', path=path)
+    build_template(repo, "run-tests.sh", path=path)
 
     # pytest.ini
     delete_line("pep8ignore", path + "pytest.ini")
@@ -94,8 +90,12 @@ def migrate_repo(path):
     # Delete travis file
     delete_file(path + ".travis.yml")
 
-    # Remove bak files
-    delete_file(path + "*.bak")
+    # Upgrade Sphinx 1 to 3 in setup.py
+    replace_regex(
+        r"Sphinx>=1.[0-9].[0-9]",
+        "Sphinx>=3",
+        path + "setup.py",
+    )
 
     # Simplify setup.py test requirements replacing them with pytest-invenio
     replace_list(
@@ -112,6 +112,7 @@ def migrate_repo(path):
             "pytest-isort",
             "pytest-pycodestyle",
             "pytest-pydocstyle",
+            "pydocstyle",
             "pytest",
             "selenium",
             # pytest-pep8 is replaced by pytest-pycodestyle
@@ -123,9 +124,12 @@ def migrate_repo(path):
         "tests_require",
     )
 
+    # Remove bak files
+    delete_file(path + "*.bak")
 
-@click.command()
-@click.option("--targetpath", help="Target repo directory path")
+
+# @click.command()
+# @click.option("--targetpath", help="Target repo directory path")
 def pipeline(targetpath):
     """Helps the migration from Travis CI pipelines
     to GitHub Actions running some common tasks"""

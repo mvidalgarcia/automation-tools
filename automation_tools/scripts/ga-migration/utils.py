@@ -30,10 +30,11 @@ def get_repo_services(repo_name):
 
         :return: Whether term matches.
         """
-        return not bool(subprocess.call(
-            f'grep {grep_options} -- "{term}" <(curl -s {url})',
-            shell=True,
-            executable="/bin/bash"
+        return not bool(
+            subprocess.call(
+                f'grep {grep_options} -- "{term}" <(curl -s {url})',
+                shell=True,
+                executable="/bin/bash",
             )
         )
 
@@ -45,23 +46,23 @@ def get_repo_services(repo_name):
 
     if is_migrated:
         logging.info("TASK: Repo already migrated, rechecking services...")
-        grep_options = '-qE'
+        grep_options = "-qE"
         url = f"{repo_master_raw_url}/run-tests.sh"
         search_terms = {
-            r"docker-services-cli up .*(DB|postgresql)": 'db',
-            r"docker-services-cli up .*(CACHE|redis)": 'cache',
-            r"docker-services-cli up .*(SEARCH|ES|\bes\b)": 'search',
-            r"docker-services-cli up .*(MQ|rabbitmq)": 'mq'
+            r"docker-services-cli up .*(DB|postgresql)": "db",
+            r"docker-services-cli up .*(CACHE|redis)": "cache",
+            r"docker-services-cli up .*(SEARCH|ES|\bes\b)": "search",
+            r"docker-services-cli up .*(MQ|rabbitmq)": "mq",
         }
     else:
         logging.info("TASK: Repo not migrated, identifing services...")
-        grep_options = '-q'
+        grep_options = "-q"
         url = travis_raw_url
         search_terms = {
-            'postgres': 'db',
-            '- redis': 'cache',
-            'elasticsearch': 'search',
-            'rabbitmq-server': 'mq'
+            "postgres": "db",
+            "- redis": "cache",
+            "elasticsearch": "search",
+            "rabbitmq-server": "mq",
         }
 
     services = dict()
@@ -71,8 +72,9 @@ def get_repo_services(repo_name):
     return services
 
 
-def build_template(repo_name, template, path='.'):
+def build_template(repo_name, template, path="."):
     """Build template based on repo services."""
+
     def create_file(content, destination):
         """Write content and create file in destination."""
         dirname = os.path.dirname(os.path.realpath(destination))
@@ -84,12 +86,9 @@ def build_template(repo_name, template, path='.'):
     has_services = any(repo_services.values())
     logging.info(f"TASK: Building and copying {template} template...")
 
-    directory = 'services' if has_services else 'serviceless'
+    directory = "services" if has_services else "serviceless"
 
-    content = render_template(
-        f"{directory}/{template}",
-        context=repo_services
-    )
+    content = render_template(f"{directory}/{template}", context=repo_services)
     destination = f"{path}/{template}"
     create_file(content, destination)
 
@@ -217,51 +216,54 @@ def replace_list(filepath, regex, to_remove, to_add, var_name):
     Write the changes to "var_name" variable in the original file
     """
 
-    with open(filepath, "r") as f:
-        contents = f.read()
+    if os.path.isfile(filepath):
+        with open(filepath, "r") as f:
+            contents = f.read()
 
-    # Search the list in the file contents
-    m = re.search(regex, contents)
+        # Search the list in the file contents
+        m = re.search(regex, contents)
 
-    # Group 0 matches the whole assignment,
-    # We need the right part of the assignment (Group 1)
-    matched_list_str = m.group(1)
+        # Group 0 matches the whole assignment,
+        # We need the right part of the assignment (Group 1)
+        matched_list_str = m.group(1)
 
-    # Deserialize it
-    parsed_list = ast.literal_eval(matched_list_str)
+        # Deserialize it
+        parsed_list = ast.literal_eval(matched_list_str)
 
-    # Prepare the new list
-    new_list = []
+        # Prepare the new list
+        new_list = []
 
-    for element in parsed_list:
-        # Look for the package name
-        pm = re.search(r"([0-9a-zA-Z-\[_\]]*)[><=]*", element)
-        # If it doesn't match with any of the stuff we want to remove,
-        #  add it to the new list
-        if pm.group(1) not in to_remove:
-            new_list.append(element)
-        else:
-            logging.info(f"Removed {element} from {var_name}")
+        for element in parsed_list:
+            # Look for the package name
+            pm = re.search(r"([0-9a-zA-Z-\[_\]]*)[><=]*", element)
+            # If it doesn't match with any of the stuff we want to remove,
+            #  add it to the new list
+            if pm.group(1) not in to_remove:
+                new_list.append(element)
+            else:
+                logging.info(f"Removed {element} from {var_name}")
 
-    for el_to_add in to_add:
-        if el_to_add not in parsed_list:
-            new_list.append(el_to_add)
-            logging.info(f"Added {el_to_add} in {var_name}")
-        else:
-            logging.info(f"{el_to_add} already in {var_name}")
+        for el_to_add in to_add:
+            if el_to_add not in parsed_list:
+                new_list.append(el_to_add)
+                logging.info(f"Added {el_to_add} in {var_name}")
+            else:
+                logging.info(f"{el_to_add} already in {var_name}")
 
-    # Reconstruct the python assignment of the variable, with the list value
-    #  Dump JSON with 4 spaces indent to keep setup.py formatted
-    #  Must be kept in-sync with the indent_size value in
-    #   .editorconfig / project setups
-    py_new_string = f"{var_name} = {json.dumps(new_list, indent=4)}"
+        # Reconstruct the python assignment of the variable, with the list value
+        #  Dump JSON with 4 spaces indent to keep setup.py formatted
+        #  Must be kept in-sync with the indent_size value in
+        #   .editorconfig / project setups
+        py_new_string = f"{var_name} = {json.dumps(new_list, indent=4)}"
 
-    # Replace the old (matched) list assignment with the one with the new contents
-    content2 = contents.replace(m.group(0), py_new_string)
+        # Replace the old (matched) list assignment with the one with the new contents
+        content2 = contents.replace(m.group(0), py_new_string)
 
-    # Overwrite the contents of the file
-    with open(filepath, "w") as f:
-        f.write(content2)
+        # Overwrite the contents of the file
+        with open(filepath, "w") as f:
+            f.write(content2)
+    else:
+        logging.info("SKIPPED TASK. No %s found" % filepath)
 
 
 def read_yaml(filepath):

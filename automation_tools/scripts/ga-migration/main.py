@@ -85,7 +85,7 @@ def migrate_repo(path):
         )
 
     # Add .github/workflows *.yml to MANIFEST.in
-    add_line("recursive-include .github/workflows *.yml", path + "MANIFEST.in")
+    add_line("recursive-include .github/workflows *.yml\n", path + "MANIFEST.in")
 
     # Delete travis file
     delete_file(path + ".travis.yml")

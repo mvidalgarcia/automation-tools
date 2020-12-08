@@ -20,29 +20,29 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-          # You can add/remove combinations e.g. `dev` requirements or `postgresql13` by adding
-          # a new item to the following lists.
-          # You can see the complete list of services and versions that are available at:
-          # https://docker-services-cli.readthedocs.io/en/latest/configuration.html
           python-version: [3.6, 3.7, 3.8, 3.9]
           requirements-level: [min, pypi]
-          {{ "cache-service: [memcached, redis]" if cache }}
-          {{ "db-service: [postgresql9, postgresql11, mysql5, mysql8]" if db }}
-          {{ "mq-service: [rabbitmq, redis]" if mq }}
-          {{ "search-service: [elasticsearch6, elasticsearch7]" if search }}
-
+          {%- if cache %}
+          cache-service: [memcached, redis]
+          {%- endif %}
+          {%- if db %}
+          db-service: [postgresql9, postgresql11, mysql5, mysql8]
+          {%- endif %}
+          {%- if mq %}
+          mq-service: [rabbitmq, redis]
+          {%- endif %}
+          {%- if search %}
+          search-service: [elasticsearch6, elasticsearch7]
+          {%- endif %}
           exclude:
-          # Add combinations to this list that should be excluded from the final
-          # build. Doing this will help keeping the number of jobs down.
-          # E.g. removing 3.8 - min combination will avoid 8 jobs to be submited
-          # [3.8] * [min] * [postgresql9, postgresql11, mysql5, mysql8] * [elasticsearch6, elasticsearch7]
           - python-version: 3.8
             requirements-level: min
 
           - python-version: 3.9
             requirements-level: min
 
-          {% if db -%}
+          {%- if db %}
+
           - db-service: postgresql11
             python-version: 3.6
 
@@ -50,12 +50,14 @@ jobs:
             python-version: 3.6
           {%- endif %}
 
-          {% if search -%}
+          {%- if search %}
+
           - search-service: elasticsearch7
             python-version: 3.6
           {%- endif %}
 
-          {% if search and db -%}
+          {%- if search and db %}
+
           - search-service: elasticsearch6
             db-service: postgresql11
 
@@ -70,7 +72,7 @@ jobs:
           {%- endif %}
 
           include:
-          {% if db -%}
+          {%- if db %}
           - db-service: postgresql9
             DB_EXTRAS: "postgresql"
 
@@ -84,7 +86,8 @@ jobs:
             DB_EXTRAS: "mysql"
           {%- endif %}
 
-          {% if search -%}
+          {%- if search %}
+
           - search-service: elasticsearch6
             SEARCH_EXTRAS: "elasticsearch6"
 
@@ -93,25 +96,23 @@ jobs:
           {%- endif %}
 
     env:
-      {% if cache -%}
+      {%- if cache %}
       CACHE: {% raw %}${{ matrix.cache-service }}{% endraw %}
       {%- endif %}
-      {% if db -%}
+      {%- if db %}
       DB: {% raw %}${{ matrix.db-service }}{% endraw %}
       {%- endif %}
-      {% if mq -%}
+      {%- if mq %}
       MQ: {% raw %}${{ matrix.mq-service }}{% endraw %}
       {%- endif %}
-      {% if search -%}
+      {%- if search %}
       SEARCH: {% raw %}${{ matrix.search-service }}{% endraw %}
       {%- endif %}
-      {%- raw %}
-      EXTRAS: all${{ join( [matrix.DB_EXTRAS, matrix.SEARCH_EXTRAS], ',' ) }}
-      {% endraw %}
+      EXTRAS: all{% if db %}{% raw %},${{ matrix.DB_EXTRAS }}{% endraw %}{% endif %}{% if search %}{% raw %},${{ matrix.SEARCH_EXTRAS }}{% endraw %}{% endif %}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      {% raw %}
+{% raw %}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -137,8 +138,6 @@ jobs:
           docker-compose --version
 
       - name: Run tests
-        # You must change the ignore command for the manifest check.
-        # Remove `.travis-*` and add `.*-requirements.txt`
         run: |
           ./run-tests.sh
-{%- endraw %}
+{% endraw %}

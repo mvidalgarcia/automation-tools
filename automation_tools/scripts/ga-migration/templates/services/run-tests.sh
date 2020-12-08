@@ -1,11 +1,11 @@
-
 #!/usr/bin/env bash
 # -*- coding: utf-8 -*-
 #
+# This file is part of Invenio.
 # Copyright (C) 2020 CERN.
 #
-# Invenio-Records-Resources is free software; you can redistribute it and/or modify
-# it under the terms of the MIT License; see LICENSE file for more details.
+# Invenio is free software; you can redistribute it and/or modify it
+# under the terms of the MIT License; see LICENSE file for more details.
 
 # Quit on errors
 set -o errexit
@@ -22,8 +22,7 @@ trap cleanup EXIT
 
 python -m check_manifest --ignore ".*-requirements.txt"
 python -m sphinx.cmd.build -qnNW docs docs/_build/html
-# TODO: Remove services below that are not neeed (fix also the usage note).
-eval "$(docker-services-cli up {{ "${DB}" if db }} {{ "${SEARCH:-es}" if search }} {{ "${CACHE:-redis}" if cache }} {{ "${MQ:-rabbitmq}" if mq }} --env)"
+eval "$(docker-services-cli up {{ "--db ${DB:-postgresql} " if db }}{{ "--search ${SEARCH:-es} " if search }}{{ "--cache ${CACHE:-redis} " if cache }}{{ "--mq ${MQ:-rabbitmq} " if mq }}--env)"
 python -m pytest
 tests_exit_code=$?
 python -m sphinx.cmd.build -qnNW -b doctest docs docs/_build/doctest

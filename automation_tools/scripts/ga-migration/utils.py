@@ -223,6 +223,10 @@ def replace_list(filepath, regex, to_remove, to_add, var_name):
         # Search the list in the file contents
         m = re.search(regex, contents)
 
+        if not m:
+            logging.info("SKIPPED TASK. Couldn't match regex")
+            return
+
         # Group 0 matches the whole assignment,
         # We need the right part of the assignment (Group 1)
         matched_list_str = m.group(1)

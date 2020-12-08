@@ -1,5 +1,6 @@
 import click
 import requests
+import logging
 
 from utils import (
     replace_regex,
@@ -22,6 +23,8 @@ from config import (
     REPO_PATHS_TO_MIGRATE,
 )
 
+logging.basicConfig(level=logging.INFO)
+
 
 def migrate_repo(path):
     """Perform migration to repo on given path."""
@@ -36,12 +39,15 @@ def migrate_repo(path):
     # Reference: https://codimd.web.cern.ch/TOOkF5yhSAKJq3TiY0L42A?view
 
     travis = read_yaml(path + ".travis.yml")
-    if travis and travis["deploy"]["provider"] == "pypi":
-        # Download pypi-publish.yml template
-        download_file(
-            GA_PYPI_PUBLISH_YAML_URL,
-            path + ".github/workflows/pypi-publish.yml",
-        )
+    try:
+        if travis["deploy"]["provider"] == "pypi":
+            # Download pypi-publish.yml template
+            download_file(
+                GA_PYPI_PUBLISH_YAML_URL,
+                path + ".github/workflows/pypi-publish.yml",
+            )
+    except Exception as e:
+        logging.info(f"Couldn't find deploy key in .travis.yml")
 
     # .editorconfig
     replace_simple(
@@ -85,7 +91,9 @@ def migrate_repo(path):
         )
 
     # Add .github/workflows *.yml to MANIFEST.in
-    add_line("recursive-include .github/workflows *.yml\n", path + "MANIFEST.in")
+    add_line(
+        "recursive-include .github/workflows *.yml\n", path + "MANIFEST.in"
+    )
 
     # Delete travis file
     delete_file(path + ".travis.yml")
@@ -128,8 +136,8 @@ def migrate_repo(path):
     delete_file(path + "*.bak")
 
 
-# @click.command()
-# @click.option("--targetpath", help="Target repo directory path")
+@click.command()
+@click.option("--targetpath", help="Target repo directory path")
 def pipeline(targetpath):
     """Helps the migration from Travis CI pipelines
     to GitHub Actions running some common tasks"""
